@@ -1,59 +1,49 @@
 #!/bin/bash
 
-# Function to print colored text
-print_info() {
-    echo -e "\033[1;32m$1\033[0m"
-}
-
-# Step 1: Create the GnuPG directory if it doesn't exist
-if [ ! -d "$HOME/.gnupg" ]; then
-    print_info "Creating GnuPG directory..."
-    mkdir -p "$HOME/.gnupg"
-fi
-
-# Step 2: Set secure permissions for GnuPG directory
-print_info "Setting permissions for GnuPG directory..."
-chmod 700 "$HOME/.gnupg"
-
-# Step 3: Configure GPG agent for SSH support
+# Step 1: Ensure GPG agent is configured for SSH support
+echo "Configuring GPG agent for SSH support..."
 GPG_AGENT_CONF="$HOME/.gnupg/gpg-agent.conf"
-if ! grep -q "enable-ssh-support" "$GPG_AGENT_CONF" 2>/dev/null; then
-    print_info "Configuring GPG agent for SSH support..."
+if ! grep -q "enable-ssh-support" "$GPG_AGENT_CONF"; then
     echo "enable-ssh-support" >> "$GPG_AGENT_CONF"
+    echo "Added 'enable-ssh-support' to $GPG_AGENT_CONF"
 else
-    print_info "GPG agent already configured for SSH support."
+    echo "'enable-ssh-support' already present in $GPG_AGENT_CONF"
 fi
 
-# Step 4: Ensure GPG uses agent for key management
-GPG_CONF="$HOME/.gnupg/gpg.conf"
-if ! grep -q "use-agent" "$GPG_CONF" 2>/dev/null; then
-    print_info "Configuring GPG to use agent..."
-    echo "use-agent" >> "$GPG_CONF"
-else
-    print_info "GPG already configured to use agent."
+# Step 2: Reload the GPG agent to apply changes
+echo "Reloading GPG agent..."
+gpg-connect-agent reloadagent /bye
+
+# Step 3: Ensure SSH environment variables are set in .bashrc (or .zshrc)
+SHELL_RC="$HOME/.bashrc"
+if [ -n "$ZSH_VERSION" ]; then
+    SHELL_RC="$HOME/.zshrc"
 fi
 
-# Step 5: Restart the GPG agent
-print_info "Restarting GPG agent..."
-gpgconf --kill gpg-agent
-gpg-agent --daemon --enable-ssh-support
-
-# Step 6: Add GPG to the bash environment if not already added
-BASHRC="$HOME/.bashrc"
-if ! grep -q "GPG_TTY" "$BASHRC"; then
-    print_info "Adding GPG_TTY to bash environment..."
-    echo "export GPG_TTY=\$(tty)" >> "$BASHRC"
-    source "$BASHRC"
+echo "Updating shell configuration ($SHELL_RC) for GPG and SSH agent..."
+if ! grep -q "GPG_TTY" "$SHELL_RC"; then
+    echo 'export GPG_TTY=$(tty)' >> "$SHELL_RC"
+    echo 'export SSH_AUTH_SOCK=$(gpgconf --list-dirs agent-ssh-socket)' >> "$SHELL_RC"
+    echo "Added GPG and SSH variables to $SHELL_RC"
 else
-    print_info "GPG_TTY is already set in bash environment."
+    echo "GPG and SSH environment variables already set in $SHELL_RC"
 fi
 
-# Step 7: Check if smart card is detected
-print_info "Checking smart card status..."
-gpg --card-status
+# Step 4: Source the shell configuration file to apply the changes
+echo "Applying changes to current shell session..."
+source "$SHELL_RC"
 
-# Step 8: Check for SSH keys in the agent
-print_info "Checking for SSH identities..."
+# Step 5: Check if the SSH key is available
+echo "Checking if the SSH key is available..."
 ssh-add -L
+if [ $? -ne 0 ]; then
+    echo "The agent has no identities, trying to export SSH key from GPG..."
+    
+    # Export the SSH key from GPG and load it into the SSH agent
+    gpg --export-ssh-key | ssh-add -
+    
+    # Recheck if the SSH key is now available
+    ssh-add -L
+fi
 
-print_info "Smart card setup completed!"
+echo "Setup complete. You should now be able to use your smartcard for SSH authentication."
