@@ -14,5 +14,8 @@ This script configures a Linux system to use a smart card (e.g., Nitrokey) with 
   ```bash
     chmod +x setup-smartcard.sh
     ./setup-smartcard.sh
+
+3. **Test the setup**:
+    ```bash
     gpg --card-status
     ssh-add -L
