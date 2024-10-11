@@ -10,7 +10,6 @@ This script configures a Linux system to use a smart card (e.g., Nitrokey) with 
    cd setup-smartcard
 
 2. **Make the script executable**:
-
   ```bash
     chmod +x setup-smartcard.sh
     ./setup-smartcard.sh
