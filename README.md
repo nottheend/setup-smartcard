@@ -9,8 +9,8 @@ This script configures a Linux system to use a smart card (e.g., Nitrokey) with 
    git clone https://github.com/nottheend/setup-smartcard.git
    cd setup-smartcard
 
-2. **Make the script executable**:
-  ```bash
+2. **Run the script**:
+   ```bash
     chmod +x setup-smartcard.sh
     ./setup-smartcard.sh
 
